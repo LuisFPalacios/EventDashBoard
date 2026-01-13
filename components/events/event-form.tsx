@@ -35,18 +35,7 @@ import { useRouter } from "next/navigation";
 import { createEvent, updateEvent } from "@/app/dashboard/actions";
 import { EventWithVenues } from "@/lib/types/database";
 import { useState } from "react";
-import { createEventSchema, type CreateEventInput } from "@/lib/schemas/event-schemas";
-
-const SPORT_TYPES = [
-  "Soccer",
-  "Basketball",
-  "Tennis",
-  "Baseball",
-  "Football",
-  "Volleyball",
-  "Hockey",
-  "Other",
-];
+import { createEventSchema, type CreateEventInput, SPORT_TYPES } from "@/lib/schemas/event-schemas";
 
 type EventFormValues = CreateEventInput;
 

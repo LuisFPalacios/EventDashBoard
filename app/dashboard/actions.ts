@@ -5,13 +5,31 @@ import { ZodError } from "zod";
 import { ActionResult } from "@/lib/action-helper";
 import { EventWithVenues } from "@/lib/types/database";
 import { revalidatePath } from "next/cache";
-import { createEventSchema, updateEventSchema } from "@/lib/schemas/event-schemas";
+import { createEventSchema, updateEventSchema, getEventsQuerySchema } from "@/lib/schemas/event-schemas";
+import { logger } from "@/lib/logger";
+
+interface PaginatedResult<T> {
+  data: T[];
+  total: number;
+  hasMore: boolean;
+}
 
 export async function getEvents(
-  searchQuery?: string,
-  sportFilter?: string
-): Promise<ActionResult<EventWithVenues[]>> {
+  params?: {
+    searchQuery?: string;
+    sportFilter?: string;
+    limit?: number;
+    offset?: number;
+  }
+): Promise<ActionResult<PaginatedResult<EventWithVenues>>> {
   try {
+    const validated = getEventsQuerySchema.parse({
+      searchQuery: params?.searchQuery || undefined,
+      sportFilter: params?.sportFilter || undefined,
+      limit: params?.limit || 50,
+      offset: params?.offset || 0,
+    });
+
     const supabase = await createClient();
 
     const {
@@ -28,27 +46,43 @@ export async function getEvents(
         `
         *,
         venues (*)
-      `
+      `,
+        { count: "exact" }
       )
       .eq("user_id", user.id)
-      .order("date_time", { ascending: true });
+      .order("date_time", { ascending: true })
+      .range(validated.offset, validated.offset + validated.limit - 1);
 
-    if (searchQuery) {
-      query = query.ilike("name", `%${searchQuery}%`);
+    if (validated.searchQuery) {
+      query = query.ilike("name", `%${validated.searchQuery}%`);
     }
 
-    if (sportFilter && sportFilter !== "all") {
-      query = query.eq("sport_type", sportFilter);
+    if (validated.sportFilter && validated.sportFilter !== "all") {
+      query = query.eq("sport_type", validated.sportFilter);
     }
 
-    const { data, error } = await query;
+    const { data, error, count } = await query;
 
     if (error) {
+      console.error("Error fetching events:", error);
       return { success: false, error: error.message };
     }
 
-    return { success: true, data: data as EventWithVenues[] };
+    const total = count || 0;
+    const hasMore = validated.offset + validated.limit < total;
+
+    return {
+      success: true,
+      data: {
+        data: (data as EventWithVenues[]) || [],
+        total,
+        hasMore,
+      },
+    };
   } catch (error) {
+    if (error instanceof ZodError) {
+      return { success: false, error: error.issues[0]?.message || "Invalid query parameters" };
+    }
     console.error("Error fetching events:", error);
     return {
       success: false,

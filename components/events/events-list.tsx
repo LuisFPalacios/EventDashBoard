@@ -38,6 +38,8 @@ export function EventsList({ searchQuery = "", sportFilter = "all" }: EventsList
   const router = useRouter();
   const searchParams = useSearchParams();
   const [events, setEvents] = useState<EventWithVenues[]>([]);
+  const [total, setTotal] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
   const [search, setSearch] = useState(searchQuery);
@@ -48,10 +50,17 @@ export function EventsList({ searchQuery = "", sportFilter = "all" }: EventsList
 
     const loadEvents = async () => {
       setIsLoading(true);
-      const result = await getEvents(searchQuery, sportFilter);
+      const result = await getEvents({
+        searchQuery,
+        sportFilter,
+        limit: 50,
+        offset: 0,
+      });
       if (isMounted) {
         if (result.success) {
-          setEvents(result.data);
+          setEvents(result.data.data);
+          setTotal(result.data.total);
+          setHasMore(result.data.hasMore);
         }
         setIsLoading(false);
       }
@@ -66,9 +75,16 @@ export function EventsList({ searchQuery = "", sportFilter = "all" }: EventsList
 
   const loadEvents = async () => {
     setIsLoading(true);
-    const result = await getEvents(searchQuery, sportFilter);
+    const result = await getEvents({
+      searchQuery,
+      sportFilter,
+      limit: 50,
+      offset: 0,
+    });
     if (result.success) {
-      setEvents(result.data);
+      setEvents(result.data.data);
+      setTotal(result.data.total);
+      setHasMore(result.data.hasMore);
     }
     setIsLoading(false);
   };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useTransition, useRef } from "react";
 import { getEvents } from "@/app/dashboard/actions";
 import { EventWithVenues } from "@/lib/types/database";
 import { EventCard } from "./event-card";
@@ -43,6 +43,15 @@ export function EventsList({ searchQuery = "", sportFilter = "all" }: EventsList
   const [isLoading, setIsLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
 
+  // Local state for search input to prevent loss of focus
+  const [searchInput, setSearchInput] = useState(searchQuery);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Sync local state with URL params when they change externally
+  useEffect(() => {
+    setSearchInput(searchQuery);
+  }, [searchQuery]);
+
   // Load events function that uses current props
   const loadEvents = async () => {
     setIsLoading(true);
@@ -65,16 +74,36 @@ export function EventsList({ searchQuery = "", sportFilter = "all" }: EventsList
   }, [searchQuery, sportFilter]);
 
   const handleSearch = (value: string) => {
-    startTransition(() => {
-      const params = new URLSearchParams(searchParams);
-      if (value) {
-        params.set("search", value);
-      } else {
-        params.delete("search");
-      }
-      router.push(`/dashboard?${params.toString()}`);
-    });
+    // Update local state immediately (keeps input responsive)
+    setSearchInput(value);
+
+    // Clear existing timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    // Debounce URL update by 300ms
+    debounceTimerRef.current = setTimeout(() => {
+      startTransition(() => {
+        const params = new URLSearchParams(searchParams);
+        if (value) {
+          params.set("search", value);
+        } else {
+          params.delete("search");
+        }
+        router.push(`/dashboard?${params.toString()}`);
+      });
+    }, 300);
   };
+
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleSportFilter = (value: string) => {
     startTransition(() => {
@@ -112,7 +141,7 @@ export function EventsList({ searchQuery = "", sportFilter = "all" }: EventsList
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search events..."
-            value={searchQuery}
+            value={searchInput}
             onChange={(e) => handleSearch(e.target.value)}
             className="pl-9"
           />

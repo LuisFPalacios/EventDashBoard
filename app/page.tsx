@@ -21,7 +21,7 @@ export default function Home() {
 
       <main className="container mx-auto px-4 py-20">
         <div className="mx-auto max-w-4xl text-center">
-          <h2 className="text-5xl font-bold tracking-tight text-slate-900 sm:text-6xl">
+          <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
             Manage Sports Events
             <span className="block text-blue-600">Like a Pro</span>
           </h2>

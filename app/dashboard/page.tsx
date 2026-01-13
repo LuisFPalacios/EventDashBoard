@@ -19,10 +19,7 @@ export default async function DashboardPage({
     <div className="min-h-screen bg-slate-50">
       <EventsHeader />
       <main className="container mx-auto px-4 py-8">
-        <Suspense
-          key={`${params.search}-${params.sport}`}
-          fallback={<EventsListSkeleton />}
-        >
+        <Suspense fallback={<EventsListSkeleton />}>
           <EventsList searchQuery={params.search} sportFilter={params.sport} />
         </Suspense>
       </main>

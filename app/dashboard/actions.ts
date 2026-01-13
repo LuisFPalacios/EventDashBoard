@@ -64,7 +64,7 @@ export async function getEvents(
     const { data, error, count } = await query;
 
     if (error) {
-      console.error("Error fetching events:", error);
+      logger.error("Error fetching events", { error });
       return { success: false, error: error.message };
     }
 
@@ -83,7 +83,7 @@ export async function getEvents(
     if (error instanceof ZodError) {
       return { success: false, error: error.issues[0]?.message || "Invalid query parameters" };
     }
-    console.error("Error fetching events:", error);
+    logger.error("Error fetching events", { error });
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to fetch events"
@@ -123,7 +123,7 @@ export async function getEvent(
 
     return { success: true, data: data as EventWithVenues };
   } catch (error) {
-    console.error("Error fetching event:", error);
+    logger.error("Error fetching event", { error });
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to fetch event"
@@ -175,7 +175,7 @@ export async function createEvent(
       .insert(venuesData);
 
     if (venuesError) {
-      console.error("Error creating venues:", venuesError);
+      logger.error("Error creating venues", { error: venuesError });
       // Note: Supabase JS client doesn't support transactions. Manual rollback here.
       // In production, consider using Postgres functions with BEGIN/COMMIT/ROLLBACK.
       const { error: rollbackError } = await supabase
@@ -184,7 +184,7 @@ export async function createEvent(
         .eq("id", event.id);
 
       if (rollbackError) {
-        console.error("Failed to rollback event creation:", rollbackError);
+        logger.error("Failed to rollback event creation", { error: rollbackError });
       }
 
       return { success: false, error: venuesError.message };
@@ -196,7 +196,7 @@ export async function createEvent(
     if (error instanceof ZodError) {
       return { success: false, error: error.issues[0]?.message || "Validation error" };
     }
-    console.error("Error creating event:", error);
+    logger.error("Error creating event", { error });
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to create event"
@@ -261,7 +261,7 @@ export async function updateEvent(
     if (error instanceof ZodError) {
       return { success: false, error: error.issues[0]?.message || "Validation error" };
     }
-    console.error("Error updating event:", error);
+    logger.error("Error updating event", { error });
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to update event"
@@ -294,7 +294,7 @@ export async function deleteEvent(id: string): Promise<ActionResult<void>> {
     revalidatePath("/dashboard");
     return { success: true, data: undefined };
   } catch (error) {
-    console.error("Error deleting event:", error);
+    logger.error("Error deleting event", { error });
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to delete event"

@@ -51,7 +51,7 @@ export function EventForm({ event, mode }: EventFormProps) {
   const defaultValues: Partial<EventFormValues> = event
     ? {
         name: event.name,
-        sport_type: event.sport_type,
+        sport_type: event.sport_type as EventFormValues["sport_type"],
         date_time: new Date(event.date_time).toISOString().slice(0, 16),
         description: event.description || "",
         venues: event.venues.map((v) => ({
@@ -61,7 +61,7 @@ export function EventForm({ event, mode }: EventFormProps) {
       }
     : {
         name: "",
-        sport_type: "",
+        sport_type: undefined,
         date_time: "",
         description: "",
         venues: [{ name: "", address: "" }],
@@ -80,24 +80,31 @@ export function EventForm({ event, mode }: EventFormProps) {
   async function onSubmit(data: EventFormValues) {
     setIsSubmitting(true);
 
-    const result =
-      mode === "create"
-        ? await createEvent(data)
-        : await updateEvent({ ...data, id: event!.id });
-
-    if (result.success) {
-      toast.success(
+    try {
+      const result =
         mode === "create"
-          ? "Event created successfully"
-          : "Event updated successfully"
-      );
-      router.push("/dashboard");
-      router.refresh();
-    } else {
-      toast.error(result.error);
-    }
+          ? await createEvent(data)
+          : mode === "edit" && event
+            ? await updateEvent({ ...data, id: event.id })
+            : { success: false, error: "Event data is missing" };
 
-    setIsSubmitting(false);
+      if (result.success) {
+        toast.success(
+          mode === "create"
+            ? "Event created successfully"
+            : "Event updated successfully"
+        );
+        router.push("/dashboard");
+        router.refresh();
+      } else {
+        toast.error(result.error);
+      }
+    } catch (error) {
+      toast.error("An unexpected error occurred. Please try again.");
+      console.error("Form submission error:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (

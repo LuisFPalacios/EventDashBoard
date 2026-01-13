@@ -42,37 +42,8 @@ export function EventsList({ searchQuery = "", sportFilter = "all" }: EventsList
   const [hasMore, setHasMore] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
-  const [search, setSearch] = useState(searchQuery);
-  const [sport, setSport] = useState(sportFilter);
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadEvents = async () => {
-      setIsLoading(true);
-      const result = await getEvents({
-        searchQuery,
-        sportFilter,
-        limit: 50,
-        offset: 0,
-      });
-      if (isMounted) {
-        if (result.success) {
-          setEvents(result.data.data);
-          setTotal(result.data.total);
-          setHasMore(result.data.hasMore);
-        }
-        setIsLoading(false);
-      }
-    };
-
-    loadEvents();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [searchQuery, sportFilter]);
-
+  // Load events function that uses current props
   const loadEvents = async () => {
     setIsLoading(true);
     const result = await getEvents({
@@ -89,8 +60,11 @@ export function EventsList({ searchQuery = "", sportFilter = "all" }: EventsList
     setIsLoading(false);
   };
 
+  useEffect(() => {
+    loadEvents();
+  }, [searchQuery, sportFilter]);
+
   const handleSearch = (value: string) => {
-    setSearch(value);
     startTransition(() => {
       const params = new URLSearchParams(searchParams);
       if (value) {
@@ -103,7 +77,6 @@ export function EventsList({ searchQuery = "", sportFilter = "all" }: EventsList
   };
 
   const handleSportFilter = (value: string) => {
-    setSport(value);
     startTransition(() => {
       const params = new URLSearchParams(searchParams);
       if (value && value !== "all") {
@@ -139,12 +112,12 @@ export function EventsList({ searchQuery = "", sportFilter = "all" }: EventsList
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search events..."
-            value={search}
+            value={searchQuery}
             onChange={(e) => handleSearch(e.target.value)}
             className="pl-9"
           />
         </div>
-        <Select value={sport} onValueChange={handleSportFilter}>
+        <Select value={sportFilter} onValueChange={handleSportFilter}>
           <SelectTrigger className="w-full sm:w-48">
             <SelectValue placeholder="Filter by sport" />
           </SelectTrigger>

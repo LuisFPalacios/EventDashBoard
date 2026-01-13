@@ -20,6 +20,7 @@ import { toast } from "sonner";
 export default function SignUpPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState({ email: "", password: "", confirmPassword: "" });
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -28,9 +29,12 @@ export default function SignUpPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrors({ email: "", password: "", confirmPassword: "" });
 
     if (formData.password !== formData.confirmPassword) {
-      toast.error("Passwords do not match");
+      const errorMsg = "Passwords do not match";
+      toast.error(errorMsg);
+      setErrors({ email: "", password: "", confirmPassword: errorMsg });
       return;
     }
 
@@ -46,6 +50,11 @@ export default function SignUpPage() {
       router.push("/auth/login");
     } else {
       toast.error(result.error);
+      setErrors({
+        email: result.error.toLowerCase().includes("email") ? result.error : "",
+        password: result.error.toLowerCase().includes("password") ? result.error : "",
+        confirmPassword: "",
+      });
     }
 
     setIsLoading(false);
@@ -88,7 +97,15 @@ export default function SignUpPage() {
                 }
                 required
                 disabled={isLoading}
+                aria-required="true"
+                aria-invalid={!!errors.email}
+                aria-describedby={errors.email ? "email-error" : undefined}
               />
+              {errors.email && (
+                <p id="email-error" className="text-sm text-destructive" role="alert">
+                  {errors.email}
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
@@ -102,7 +119,15 @@ export default function SignUpPage() {
                 }
                 required
                 disabled={isLoading}
+                aria-required="true"
+                aria-invalid={!!errors.password}
+                aria-describedby={errors.password ? "password-error" : undefined}
               />
+              {errors.password && (
+                <p id="password-error" className="text-sm text-destructive" role="alert">
+                  {errors.password}
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Confirm Password</Label>
@@ -116,7 +141,15 @@ export default function SignUpPage() {
                 }
                 required
                 disabled={isLoading}
+                aria-required="true"
+                aria-invalid={!!errors.confirmPassword}
+                aria-describedby={errors.confirmPassword ? "confirm-password-error" : undefined}
               />
+              {errors.confirmPassword && (
+                <p id="confirm-password-error" className="text-sm text-destructive" role="alert">
+                  {errors.confirmPassword}
+                </p>
+              )}
             </div>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">

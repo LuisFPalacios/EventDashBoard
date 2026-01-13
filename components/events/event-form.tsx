@@ -88,18 +88,38 @@ export function EventForm({ event, mode }: EventFormProps) {
 
   // Warn user about unsaved changes when navigating away
   useEffect(() => {
+    // Browser navigation (close/refresh tab)
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      // Only warn if form has been modified and not yet submitted
       if (form.formState.isDirty && !isSubmitting) {
         e.preventDefault();
         return (e.returnValue = "You have unsaved changes. Are you sure you want to leave?");
       }
     };
 
+    // Intercept all link clicks for client-side navigation
+    const handleLinkClick = (e: MouseEvent) => {
+      if (!form.formState.isDirty || isSubmitting) return;
+
+      const target = e.target as HTMLElement;
+      const link = target.closest("a");
+
+      if (link && link.href) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        toast.error("You have unsaved changes. Please save or cancel your changes first.", {
+          duration: 4000,
+        });
+      }
+    };
+
     window.addEventListener("beforeunload", handleBeforeUnload);
+    // Use capture phase to intercept before Next.js Link handles it
+    document.addEventListener("click", handleLinkClick, true);
 
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
+      document.removeEventListener("click", handleLinkClick, true);
     };
   }, [form.formState.isDirty, isSubmitting, form]);
 

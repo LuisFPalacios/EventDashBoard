@@ -2,7 +2,6 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useFieldArray } from "react-hook-form";
-import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -36,6 +35,7 @@ import { useRouter } from "next/navigation";
 import { createEvent, updateEvent } from "@/app/dashboard/actions";
 import { EventWithVenues } from "@/lib/types/database";
 import { useState } from "react";
+import { createEventSchema, type CreateEventInput } from "@/lib/schemas/event-schemas";
 
 const SPORT_TYPES = [
   "Soccer",
@@ -48,20 +48,7 @@ const SPORT_TYPES = [
   "Other",
 ];
 
-const venueSchema = z.object({
-  name: z.string().min(1, "Venue name is required"),
-  address: z.string().optional(),
-});
-
-const eventFormSchema = z.object({
-  name: z.string().min(1, "Event name is required"),
-  sport_type: z.string().min(1, "Sport type is required"),
-  date_time: z.string().min(1, "Date and time are required"),
-  description: z.string().optional(),
-  venues: z.array(venueSchema).min(1, "At least one venue is required"),
-});
-
-type EventFormValues = z.infer<typeof eventFormSchema>;
+type EventFormValues = CreateEventInput;
 
 interface EventFormProps {
   event?: EventWithVenues;
@@ -92,7 +79,7 @@ export function EventForm({ event, mode }: EventFormProps) {
       };
 
   const form = useForm<EventFormValues>({
-    resolver: zodResolver(eventFormSchema),
+    resolver: zodResolver(createEventSchema),
     defaultValues,
   });
 

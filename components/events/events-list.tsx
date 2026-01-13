@@ -44,7 +44,24 @@ export function EventsList({ searchQuery = "", sportFilter = "all" }: EventsList
   const [sport, setSport] = useState(sportFilter);
 
   useEffect(() => {
+    let isMounted = true;
+
+    const loadEvents = async () => {
+      setIsLoading(true);
+      const result = await getEvents(searchQuery, sportFilter);
+      if (isMounted) {
+        if (result.success) {
+          setEvents(result.data);
+        }
+        setIsLoading(false);
+      }
+    };
+
     loadEvents();
+
+    return () => {
+      isMounted = false;
+    };
   }, [searchQuery, sportFilter]);
 
   const loadEvents = async () => {

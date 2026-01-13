@@ -1,32 +1,11 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { z, ZodError } from "zod";
+import { ZodError } from "zod";
 import { ActionResult } from "@/lib/action-helper";
 import { EventWithVenues } from "@/lib/types/database";
 import { revalidatePath } from "next/cache";
-
-const venueSchema = z.object({
-  name: z.string().min(1, "Venue name is required"),
-  address: z.string().optional(),
-});
-
-const createEventSchema = z.object({
-  name: z.string().min(1, "Event name is required"),
-  sport_type: z.string().min(1, "Sport type is required"),
-  date_time: z.string().min(1, "Date and time are required"),
-  description: z.string().optional(),
-  venues: z.array(venueSchema).min(1, "At least one venue is required"),
-});
-
-const updateEventSchema = z.object({
-  id: z.string().uuid(),
-  name: z.string().min(1, "Event name is required"),
-  sport_type: z.string().min(1, "Sport type is required"),
-  date_time: z.string().min(1, "Date and time are required"),
-  description: z.string().optional(),
-  venues: z.array(venueSchema).min(1, "At least one venue is required"),
-});
+import { createEventSchema, updateEventSchema } from "@/lib/schemas/event-schemas";
 
 export async function getEvents(
   searchQuery?: string,
@@ -70,7 +49,11 @@ export async function getEvents(
 
     return { success: true, data: data as EventWithVenues[] };
   } catch (error) {
-    return { success: false, error: "Failed to fetch events" };
+    console.error("Error fetching events:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to fetch events"
+    };
   }
 }
 
@@ -106,7 +89,11 @@ export async function getEvent(
 
     return { success: true, data: data as EventWithVenues };
   } catch (error) {
-    return { success: false, error: "Failed to fetch event" };
+    console.error("Error fetching event:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to fetch event"
+    };
   }
 }
 
@@ -154,8 +141,18 @@ export async function createEvent(
       .insert(venuesData);
 
     if (venuesError) {
-      // Rollback: delete the event if venues creation fails
-      await supabase.from("events").delete().eq("id", event.id);
+      console.error("Error creating venues:", venuesError);
+      // Note: Supabase JS client doesn't support transactions. Manual rollback here.
+      // In production, consider using Postgres functions with BEGIN/COMMIT/ROLLBACK.
+      const { error: rollbackError } = await supabase
+        .from("events")
+        .delete()
+        .eq("id", event.id);
+
+      if (rollbackError) {
+        console.error("Failed to rollback event creation:", rollbackError);
+      }
+
       return { success: false, error: venuesError.message };
     }
 
@@ -165,7 +162,11 @@ export async function createEvent(
     if (error instanceof ZodError) {
       return { success: false, error: error.issues[0]?.message || "Validation error" };
     }
-    return { success: false, error: "Failed to create event" };
+    console.error("Error creating event:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to create event"
+    };
   }
 }
 
@@ -226,7 +227,11 @@ export async function updateEvent(
     if (error instanceof ZodError) {
       return { success: false, error: error.issues[0]?.message || "Validation error" };
     }
-    return { success: false, error: "Failed to update event" };
+    console.error("Error updating event:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to update event"
+    };
   }
 }
 
@@ -255,6 +260,10 @@ export async function deleteEvent(id: string): Promise<ActionResult<void>> {
     revalidatePath("/dashboard");
     return { success: true, data: undefined };
   } catch (error) {
-    return { success: false, error: "Failed to delete event" };
+    console.error("Error deleting event:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to delete event"
+    };
   }
 }

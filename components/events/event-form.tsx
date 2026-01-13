@@ -86,6 +86,35 @@ export function EventForm({ event, mode }: EventFormProps) {
     name: "venues",
   });
 
+  // Warn user about unsaved changes when navigating away
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // Only warn if form has been modified and not yet submitted
+      if (form.formState.isDirty && !isSubmitting) {
+        e.preventDefault();
+        return (e.returnValue = "You have unsaved changes. Are you sure you want to leave?");
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [form.formState.isDirty, isSubmitting, form]);
+
+  const handleCancel = () => {
+    if (form.formState.isDirty) {
+      const confirmed = window.confirm(
+        "You have unsaved changes. Are you sure you want to leave?"
+      );
+      if (!confirmed) {
+        return;
+      }
+    }
+    router.back();
+  };
+
   async function onSubmit(data: EventFormValues) {
     // Check if component is still mounted before starting
     if (!isMountedRef.current) return;
@@ -302,7 +331,7 @@ export function EventForm({ event, mode }: EventFormProps) {
           <Button
             type="button"
             variant="outline"
-            onClick={() => router.back()}
+            onClick={handleCancel}
             disabled={isSubmitting}
           >
             Cancel

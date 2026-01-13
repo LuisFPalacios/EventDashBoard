@@ -40,19 +40,33 @@ interface EventCardProps {
 export function EventCard({ event, onDelete }: EventCardProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const handleDelete = async () => {
     setIsDeleting(true);
+    setDeleteError(null);
+
     const result = await deleteEvent(event.id);
 
     if (result.success) {
       toast.success("Event deleted successfully");
       setShowDeleteDialog(false);
+      // Call onDelete callback for optimistic update
       onDelete?.();
     } else {
+      // Keep dialog open and show error with retry option
+      setDeleteError(result.error || "Failed to delete event");
       toast.error(result.error);
     }
     setIsDeleting(false);
+  };
+
+  const handleDialogClose = (open: boolean) => {
+    if (!open) {
+      // Reset error state when closing dialog
+      setDeleteError(null);
+    }
+    setShowDeleteDialog(open);
   };
 
   return (
@@ -129,7 +143,7 @@ export function EventCard({ event, onDelete }: EventCardProps) {
         </CardFooter>
       </Card>
 
-      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+      <Dialog open={showDeleteDialog} onOpenChange={handleDialogClose}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Are you sure?</DialogTitle>
@@ -138,8 +152,13 @@ export function EventCard({ event, onDelete }: EventCardProps) {
               &quot;{event.name}&quot; and all associated venues.
             </DialogDescription>
           </DialogHeader>
+          {deleteError && (
+            <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+              {deleteError}
+            </div>
+          )}
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
+            <Button variant="outline" onClick={() => handleDialogClose(false)} disabled={isDeleting}>
               Cancel
             </Button>
             <Button
@@ -147,7 +166,7 @@ export function EventCard({ event, onDelete }: EventCardProps) {
               onClick={handleDelete}
               disabled={isDeleting}
             >
-              {isDeleting ? "Deleting..." : "Delete"}
+              {isDeleting ? "Deleting..." : deleteError ? "Retry" : "Delete"}
             </Button>
           </DialogFooter>
         </DialogContent>

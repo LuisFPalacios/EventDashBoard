@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition, useRef } from "react";
+import { useEffect, useState, useTransition, useCallback } from "react";
 import { getEvents } from "@/app/dashboard/actions";
 import { EventWithVenues } from "@/lib/types/database";
 import { EventCard } from "./event-card";
@@ -17,17 +17,8 @@ import { Plus, Search } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
-
-const SPORT_TYPES = [
-  "Soccer",
-  "Basketball",
-  "Tennis",
-  "Baseball",
-  "Football",
-  "Volleyball",
-  "Hockey",
-  "Other",
-];
+import { SPORT_TYPES } from "@/lib/schemas/event-schemas";
+import { useDebounce } from "@/lib/hooks/useDebounce";
 
 interface EventsListProps {
   searchQuery?: string;
@@ -37,73 +28,74 @@ interface EventsListProps {
 export function EventsList({ searchQuery = "", sportFilter = "all" }: EventsListProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [events, setEvents] = useState<EventWithVenues[]>([]);
-  const [total, setTotal] = useState(0);
-  const [hasMore, setHasMore] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+
+  // Combined state object to avoid multiple setState calls
+  const [listState, setListState] = useState({
+    events: [] as EventWithVenues[],
+    total: 0,
+    hasMore: false,
+    isLoading: true,
+  });
+
   const [isPending, startTransition] = useTransition();
 
   // Local state for search input to prevent loss of focus
   const [searchInput, setSearchInput] = useState(searchQuery);
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Debounce the search input for URL updates
+  const debouncedSearchInput = useDebounce(searchInput, 300);
 
   // Sync local state with URL params when they change externally
   useEffect(() => {
     setSearchInput(searchQuery);
   }, [searchQuery]);
 
-  // Load events function that uses current props
-  const loadEvents = async () => {
-    setIsLoading(true);
+  // Update URL when debounced search changes
+  useEffect(() => {
+    if (debouncedSearchInput !== searchQuery) {
+      startTransition(() => {
+        const params = new URLSearchParams(searchParams);
+        if (debouncedSearchInput) {
+          params.set("search", debouncedSearchInput);
+        } else {
+          params.delete("search");
+        }
+        router.push(`/dashboard?${params.toString()}`);
+      });
+    }
+  }, [debouncedSearchInput, searchQuery, searchParams, router]);
+
+  // Load events function with useCallback to prevent unnecessary recreations
+  const loadEvents = useCallback(async () => {
+    setListState(prev => ({ ...prev, isLoading: true }));
+
     const result = await getEvents({
       searchQuery,
       sportFilter,
       limit: 50,
       offset: 0,
     });
+
     if (result.success) {
-      setEvents(result.data.data);
-      setTotal(result.data.total);
-      setHasMore(result.data.hasMore);
+      setListState({
+        events: result.data.data,
+        total: result.data.total,
+        hasMore: result.data.hasMore,
+        isLoading: false,
+      });
+    } else {
+      setListState(prev => ({ ...prev, isLoading: false }));
     }
-    setIsLoading(false);
-  };
+  }, [searchQuery, sportFilter]);
 
   useEffect(() => {
     loadEvents();
-  }, [searchQuery, sportFilter]);
+  }, [loadEvents]);
 
   const handleSearch = (value: string) => {
     // Update local state immediately (keeps input responsive)
     setSearchInput(value);
-
-    // Clear existing timer
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-
-    // Debounce URL update by 300ms
-    debounceTimerRef.current = setTimeout(() => {
-      startTransition(() => {
-        const params = new URLSearchParams(searchParams);
-        if (value) {
-          params.set("search", value);
-        } else {
-          params.delete("search");
-        }
-        router.push(`/dashboard?${params.toString()}`);
-      });
-    }, 300);
   };
-
-  // Cleanup debounce timer on unmount
-  useEffect(() => {
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-    };
-  }, []);
 
   const handleSportFilter = (value: string) => {
     startTransition(() => {
@@ -117,7 +109,7 @@ export function EventsList({ searchQuery = "", sportFilter = "all" }: EventsList
     });
   };
 
-  if (isLoading) {
+  if (listState.isLoading) {
     return (
       <div className="space-y-6">
         <div className="flex gap-4">
@@ -173,7 +165,7 @@ export function EventsList({ searchQuery = "", sportFilter = "all" }: EventsList
         </div>
       )}
 
-      {events.length === 0 ? (
+      {listState.events.length === 0 ? (
         <div className="flex min-h-[400px] flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
           <h3 className="text-lg font-semibold">No events found</h3>
           <p className="mt-2 text-sm text-muted-foreground">
@@ -190,7 +182,7 @@ export function EventsList({ searchQuery = "", sportFilter = "all" }: EventsList
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {events.map((event) => (
+          {listState.events.map((event) => (
             <EventCard key={event.id} event={event} onDelete={loadEvents} />
           ))}
         </div>

@@ -34,7 +34,7 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { createEvent, updateEvent } from "@/app/dashboard/actions";
 import { EventWithVenues } from "@/lib/types/database";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createEventSchema, type CreateEventInput, SPORT_TYPES } from "@/lib/schemas/event-schemas";
 
 type EventFormValues = CreateEventInput;
@@ -47,6 +47,15 @@ interface EventFormProps {
 export function EventForm({ event, mode }: EventFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isMountedRef = useRef(true);
+
+  // Track component mounted state to prevent setState on unmounted component
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const defaultValues: Partial<EventFormValues> = event
     ? {
@@ -78,6 +87,9 @@ export function EventForm({ event, mode }: EventFormProps) {
   });
 
   async function onSubmit(data: EventFormValues) {
+    // Check if component is still mounted before starting
+    if (!isMountedRef.current) return;
+
     setIsSubmitting(true);
 
     try {
@@ -87,6 +99,9 @@ export function EventForm({ event, mode }: EventFormProps) {
           : mode === "edit" && event
             ? await updateEvent({ ...data, id: event.id })
             : { success: false, error: "Event data is missing" };
+
+      // Only update state if component is still mounted
+      if (!isMountedRef.current) return;
 
       if (result.success) {
         toast.success(
@@ -100,10 +115,16 @@ export function EventForm({ event, mode }: EventFormProps) {
         toast.error(result.error);
       }
     } catch (error) {
+      // Only update state if component is still mounted
+      if (!isMountedRef.current) return;
+
       toast.error("An unexpected error occurred. Please try again.");
       console.error("Form submission error:", error);
     } finally {
-      setIsSubmitting(false);
+      // Only update state if component is still mounted
+      if (isMountedRef.current) {
+        setIsSubmitting(false);
+      }
     }
   }
 
